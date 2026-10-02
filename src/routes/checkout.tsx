@@ -199,7 +199,14 @@ function CheckoutPage() {
             </p>
             <FieldError id="cred-err">{credError}</FieldError>
             {credError && credErrorCode === "user_has_active_loan" && (
-              <Link to="/loan" className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-info underline">
+              <Link
+                to="/loan"
+                onClick={() => {
+                  const u = state.users.find((x) => x.credential === credential.trim().toUpperCase());
+                  if (u && activeLoanOf(state, u.id)) setSessionCredential(u.credential);
+                }}
+                className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-info underline"
+              >
                 {t("checkout.activeLoanLink")}
               </Link>
             )}
