@@ -44,18 +44,46 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+function withSecurityHeaders(request: Request, response: Response): Response {
+  const host = new URL(request.url).hostname;
+  // The editor preview is embedded in an iframe; only block framing on the published site.
+  const embeddable = host.includes("id-preview") || host === "localhost" || host.endsWith("-dev.lovable.app");
+  const headers = new Headers(response.headers);
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' https: wss:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    embeddable ? "frame-ancestors *" : "frame-ancestors 'none'",
+  ].join("; ");
+  headers.set("Content-Security-Policy", csp);
+  if (!embeddable) headers.set("X-Frame-Options", "DENY");
+  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return withSecurityHeaders(request, await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
+      return withSecurityHeaders(
+        request,
+        new Response(renderErrorPage(), {
+          status: 500,
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      );
     }
   },
 };
