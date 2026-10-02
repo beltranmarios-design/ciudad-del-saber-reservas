@@ -203,7 +203,7 @@ export function DemoClockBanner() {
     <div
       role="status"
       data-testid="demo-clock-banner"
-      className="sticky top-[57px] z-20 border-b-2 border-dashed border-info bg-info-soft text-info"
+      className="border-b-2 border-dashed border-info bg-info-soft text-info"
     >
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-0.5 px-4 py-2 text-sm">
         <FlaskConical className="size-4 shrink-0" aria-hidden />
