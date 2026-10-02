@@ -1,9 +1,9 @@
 import { DEFAULT_CONFIG } from "./constants";
+import { latestServiceInstant, normalizeLowBattery, serviceDayAt } from "./rules";
 import type { AppState, Loan, Movement, Organization, Station, User, Vehicle } from "./types";
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
-const DAY = 24 * HOUR;
 
 const pad = (n: number) => String(n).padStart(3, "0");
 
@@ -22,7 +22,7 @@ const STATIONS: Array<Station & { bikes: number; scooters: number }> = [
 const SCOOTER_SETUP: Record<number, { battery: number; charging?: boolean }> = {
   1: { battery: 85 },
   2: { battery: 92 },
-  3: { battery: 20 },
+  3: { battery: 20, charging: true },
   4: { battery: 15, charging: true },
   5: { battery: 64 },
   6: { battery: 18, charging: true },
@@ -35,7 +35,7 @@ const SCOOTER_SETUP: Record<number, { battery: number; charging?: boolean }> = {
   13: { battery: 76 },
   14: { battery: 76 },
   15: { battery: 33 },
-  16: { battery: 20 },
+  16: { battery: 20, charging: true },
   17: { battery: 100 },
   18: { battery: 12, charging: true },
   19: { battery: 68 },
@@ -106,26 +106,28 @@ export function createSeedState(now: number): AppState {
     });
 
   const max = config.maxLoanMinutes * MIN;
-  const active = (id: string, userId: string, vehicleId: string, origin: string, agoMin: number): Loan => ({
-    id,
-    userId,
-    vehicleId,
-    originStationId: origin,
-    startAt: now - agoMin * MIN,
-    dueAt: now - agoMin * MIN + max,
-    status: "active",
-  });
+  const sched = config.schedule;
+  // Every seeded pickup happens inside the REAL service hours (America/Panama).
+  // Active loans are anchored to the latest open minute <= now; if that is long
+  // ago (night, weekend) they honestly show as overdue.
+  const anchor = latestServiceInstant(now, sched);
+  const active = (id: string, userId: string, vehicleId: string, origin: string, agoMin: number): Loan => {
+    const startAt = latestServiceInstant(anchor - agoMin * MIN, sched);
+    return { id, userId, vehicleId, originStationId: origin, startAt, dueAt: startAt + max, status: "active" };
+  };
   const returned = (
     id: string,
     userId: string,
     vehicleId: string,
     origin: string,
     dest: string,
-    startAgo: number,
+    serviceDaysBack: number,
+    at: string,
     durMin: number,
   ): Loan => {
-    const startAt = now - startAgo;
-    const durationMs = durMin * MIN;
+    const startAt = serviceDayAt(now, serviceDaysBack, at, sched);
+    const returnedAt = startAt + durMin * MIN;
+    const durationMs = returnedAt - startAt;
     return {
       id,
       userId,
@@ -135,7 +137,7 @@ export function createSeedState(now: number): AppState {
       dueAt: startAt + max,
       status: "returned",
       returnStationId: dest,
-      returnedAt: startAt + durationMs,
+      returnedAt,
       durationMs,
       overdue: durationMs > max,
     };
@@ -148,14 +150,14 @@ export function createSeedState(now: number): AppState {
     active("L-0004", "u-04", "v-bic-039", "st-resid", 70),
     active("L-0005", "u-05", "v-sco-020", "st-lab", 15),
     active("L-0006", "u-06", "v-bic-040", "st-gym", 90),
-    returned("L-0901", "u-07", "v-bic-012", "st-acceso", "st-oi", 1 * DAY + 3 * HOUR, 18),
-    returned("L-0902", "u-08", "v-sco-011", "st-resid", "st-comedor", 1 * DAY + 5 * HOUR, 32),
-    returned("L-0903", "u-01", "v-bic-002", "st-oi", "st-acceso", 2 * DAY + 2 * HOUR, 145),
-    returned("L-0904", "u-10", "v-bic-031", "st-lab", "st-resid", 2 * DAY + 6 * HOUR, 41),
-    returned("L-0905", "u-02", "v-sco-002", "st-comedor", "st-acceso", 3 * DAY + 1 * HOUR, 120),
-    returned("L-0906", "u-03", "v-bic-017", "st-biblio", "st-lab", 3 * DAY + 4 * HOUR, 27),
-    returned("L-0907", "u-07", "v-sco-013", "st-gym", "st-resid", 4 * DAY + 2 * HOUR, 188),
-    returned("L-0908", "u-04", "v-bic-022", "st-conv", "st-comedor", 5 * DAY + 3 * HOUR, 12),
+    returned("L-0901", "u-07", "v-bic-012", "st-acceso", "st-oi", 1, "08:10", 18),
+    returned("L-0902", "u-08", "v-sco-011", "st-resid", "st-comedor", 1, "12:35", 32),
+    returned("L-0903", "u-01", "v-bic-002", "st-oi", "st-acceso", 2, "09:20", 145),
+    returned("L-0904", "u-10", "v-bic-031", "st-lab", "st-resid", 2, "16:05", 41),
+    returned("L-0905", "u-02", "v-sco-002", "st-comedor", "st-acceso", 3, "11:00", 120),
+    returned("L-0906", "u-03", "v-bic-017", "st-biblio", "st-lab", 3, "14:40", 27),
+    returned("L-0907", "u-07", "v-sco-013", "st-gym", "st-resid", 4, "17:30", 188),
+    returned("L-0908", "u-04", "v-bic-022", "st-conv", "st-comedor", 5, "07:45", 12),
   ];
 
   const movements: Movement[] = [
@@ -164,14 +166,14 @@ export function createSeedState(now: number): AppState {
       vehicleId: "v-bic-029",
       fromStationId: "st-acceso",
       toStationId: "st-biblio",
-      at: now - 2 * DAY,
+      at: serviceDayAt(now, 2, "10:30", sched),
       responsible: "Equipo de operaciones",
       reason: "Redistribución de prueba",
     },
   ];
 
-  return {
-    version: 1,
+  return normalizeLowBattery({
+    version: 2,
     initializedAt: now,
     organizations: structuredClone(ORGS),
     users: structuredClone(USERS),
@@ -180,5 +182,5 @@ export function createSeedState(now: number): AppState {
     loans,
     movements,
     config,
-  };
+  });
 }
