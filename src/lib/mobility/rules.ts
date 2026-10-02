@@ -125,6 +125,36 @@ export function isServiceOpen(now: number, cfg: Config): boolean {
   );
 }
 
+/**
+ * Latest instant <= t (minute precision) at which pickups are allowed by the REAL
+ * schedule (ignores the demo override). Used to generate coherent demo dates.
+ */
+export function latestServiceInstant(t: number, schedule: Config["schedule"]): number {
+  const open = toMinutes(schedule.open);
+  const close = toMinutes(schedule.close);
+  let cur = Math.floor(t / MIN) * MIN;
+  for (let i = 0; i < 14; i++) {
+    const { weekday, minutes } = zonedParts(cur, schedule.timeZone);
+    const day = schedule.days.includes(weekday);
+    if (day && minutes >= open && minutes < close) return cur;
+    if (day && minutes >= close) cur -= (minutes - close + 1) * MIN; // last open minute today
+    else cur -= (minutes + 1) * MIN; // 23:59 of the previous day
+  }
+  return cur;
+}
+
+/** Instant at local time hh:mm on the n-th service day before t's local day. */
+export function serviceDayAt(t: number, daysBack: number, hhmm: string, schedule: Config["schedule"]): number {
+  let cur = Math.floor(t / MIN) * MIN;
+  let left = daysBack;
+  for (let guard = 0; guard < 60 && left > 0; guard++) {
+    cur -= 24 * 60 * MIN;
+    if (schedule.days.includes(zonedParts(cur, schedule.timeZone).weekday)) left--;
+  }
+  const { minutes } = zonedParts(cur, schedule.timeZone);
+  return cur + (toMinutes(hhmm) - minutes) * MIN;
+}
+
 // ---------- Loans ----------
 
 export const maxLoanMs = (cfg: Config) => cfg.maxLoanMinutes * MIN;
@@ -248,6 +278,27 @@ export function stationsWithSpace(state: AppState, exceptId?: string) {
 
 // ---------- Fleet operations ----------
 
+/**
+ * Coherence rule: a PARKED scooter marked available with battery <= threshold is
+ * not really available — it goes to charging. Loaned / maintenance are untouched.
+ */
+export function normalizeLowBattery(state: AppState): AppState {
+  let changed = false;
+  const vehicles = state.vehicles.map((v) => {
+    if (
+      v.type === "scooter" &&
+      v.status === "available" &&
+      v.stationId &&
+      (v.battery ?? 0) <= state.config.batteryThreshold
+    ) {
+      changed = true;
+      return { ...v, status: "charging" as const };
+    }
+    return v;
+  });
+  return changed ? { ...state, vehicles } : state;
+}
+
 export function setVehicleStatus(
   state: AppState,
   vehicleId: string,
@@ -339,7 +390,7 @@ export function validateConfig(cfg: Config): string[] {
 
 export function updateConfig(state: AppState, cfg: Config): OpResult {
   if (validateConfig(cfg).length) return fail("invalid_config");
-  return { ok: true, state: { ...state, config: cfg } };
+  return { ok: true, state: normalizeLowBattery({ ...state, config: cfg }) };
 }
 
 // ---------- Redistribution ----------
