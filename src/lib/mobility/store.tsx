@@ -11,7 +11,7 @@ interface Store {
   state: AppState | null;
   corruptRaw: string | null;
   /** Re-reads storage, applies op, persists; updates UI only if persisted. */
-  run: <T extends OpResult<object>>(op: (s: AppState) => T) => T | { ok: false; error: ErrorCode };
+  run: <T extends OpResult<object>>(op: (s: AppState) => T) => T | { ok: false; error: ErrorCode; params?: Record<string, string | number> };
   reset: () => boolean;
   reload: () => void;
   sessionCredential: string | null;

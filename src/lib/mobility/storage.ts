@@ -90,7 +90,7 @@ export function commitOperation<T extends OpResult<object>>(
   storage: StorageLike | null,
   op: (state: AppState) => T,
   now = Date.now(),
-): T | { ok: false; error: ErrorCode } {
+): T | { ok: false; error: ErrorCode; params?: Record<string, string | number> } {
   const loaded = loadState(storage, now);
   if (loaded.status === "blocked") return { ok: false, error: "storage_unavailable" };
   if (loaded.status === "corrupt") return { ok: false, error: "storage_corrupt" };

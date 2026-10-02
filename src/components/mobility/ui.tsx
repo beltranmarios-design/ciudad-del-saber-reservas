@@ -24,8 +24,8 @@ export function useErrorText() {
     const cfg = state?.config;
     const extra: Record<string, string | number> = { ...params };
     if (error === "outside_service_hours" && cfg)
-      extra.hours = t("service.hours", { open: cfg.schedule.open, close: cfg.schedule.close });
-    if (error === "battery_too_low" && cfg) extra.threshold = cfg.batteryThreshold;
+      extra["hours"] = t("service.hours", { open: cfg.schedule.open, close: cfg.schedule.close });
+    if (error === "battery_too_low" && cfg) extra["threshold"] = cfg.batteryThreshold;
     return t(`err.${error}` as TKey, extra);
   };
 }
