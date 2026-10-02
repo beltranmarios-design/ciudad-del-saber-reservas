@@ -3,7 +3,6 @@ import { latestServiceInstant, normalizeLowBattery, serviceDayAt } from "./rules
 import type { AppState, Loan, Movement, Organization, Station, User, Vehicle } from "./types";
 
 const MIN = 60_000;
-const HOUR = 60 * MIN;
 
 const pad = (n: number) => String(n).padStart(3, "0");
 
