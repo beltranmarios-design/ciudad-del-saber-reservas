@@ -80,3 +80,15 @@ Identificación por credencial, acceso de operaciones, desbloqueo, batería de d
 2. Mover `rules.ts` al servidor como fuente de verdad (las funciones son puras y reutilizables) con bloqueo/transacciones por vehículo y estación.
 3. Reemplazar credencial simulada y `OPS_ACCESS_KEY` por autenticación real y roles en tabla separada.
 4. Integrar cerraduras/telemetría de batería si procede; añadir políticas legales y despliegue.
+
+## Correcciones de la revisión (v2 de datos)
+
+- **Batería al 20 %**: un scooter solo es retirable si está estacionado, en estado *Disponible* y con batería **> 20 %** (`isEligible`, única función usada por contadores, mapa, selección y validación final). En los datos iniciales SCO-003 y SCO-016 (20 %) pasan a *En carga*. Devolver con ≤ 20 % lo deja en carga. Si se sube el umbral en Configuración, los scooters estacionados afectados pasan a carga.
+- **Migración versionada**: los datos guardados con `version: 1` se migran a `version: 2` al cargar, sin borrar nada: solo los scooters **estacionados y disponibles** con batería ≤ umbral pasan a *En carga*. Préstamos, historial, movimientos, ubicaciones y demás cambios se conservan; vehículos prestados o en mantenimiento no se tocan.
+- **Fechas de demostración**: todas las retiradas precargadas caen dentro del horario real (lun–vie 07:00–20:00, America/Panama). Los préstamos activos se anclan al último minuto de servicio anterior a la carga; si se abre la app de noche o en fin de semana aparecen **vencidos**, sin maquillar fechas. Duración y vencimiento se calculan desde las fechas reales. Los datos ya guardados no se re-fechan (usa *Reiniciar datos* para regenerarlos).
+- **Reloj de demostración**: con *Forzar abierto/cerrado* aparece en todas las pantallas el aviso «Modo demostración: servicio forzado abierto/cerrado» (y en inglés), con estilo azul discontinuo distinto del estado real. *Automático* (hora de Panamá) es el valor inicial.
+- **Retirada**: el primer paso avisa si el servicio está cerrado (horario y zona horaria) o si no hay vehículos elegibles del tipo elegido, y bloquea *Continuar*. Una credencial con préstamo activo muestra el motivo y un enlace a *Mi préstamo*. La validación final se mantiene. Las devoluciones no se bloquean.
+- **Mapa**: leyenda que explica que la cifra son vehículos disponibles para retirar (según el filtro) y que el color es la ocupación. Las tarjetas muestran por separado Disponibles, Ocupación y Plazas libres (= capacidad − ocupación). Los nombres largos se parten en varias líneas; el nombre completo se consulta tocando o pulsando Intro en el marcador.
+- **Plurales y errores**: formas singular/plural (`{n:singular|plural}`) en ES/EN; mensajes de configuración específicos junto al campo (p. ej. «El umbral alto de ocupación debe ser mayor que el umbral bajo»), conservando los valores introducidos.
+
+Pruebas: `bunx vitest run` (incluye baterías 19/20/21 %, migración, fechas coherentes, consistencia de contadores y plurales).

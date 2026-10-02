@@ -1,13 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { z } from "zod";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type TKey } from "@/lib/i18n";
 import { useNow, useStore } from "@/lib/mobility/store";
-import { activeLoanOf, checkout, previewCheckout, stationStats } from "@/lib/mobility/rules";
+import { activeLoanOf, checkout, ineligibleReason, isServiceOpen, previewCheckout, stationStats } from "@/lib/mobility/rules";
 import type { Loan, VehicleType } from "@/lib/mobility/types";
 import { BatteryValue, Card, FieldError, PageHeader, Pill, Select, VehicleIcon, inputCls, useErrorText } from "@/components/mobility/ui";
-import { DemoClockBanner } from "@/components/mobility/AppShell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +48,13 @@ function CheckoutPage() {
   if (!state) return null;
   const station = state.stations.find((s) => s.id === stationId);
   const preview = previewCheckout(state, { credential, stationId, type, now });
+
+  const serviceOpen = isServiceOpen(now, state.config);
+  const hours = t("service.hours", { open: state.config.schedule.open, close: state.config.schedule.close });
+  const noVehicleReason = station ? ineligibleReason(state, station.id, type) : null;
+  const typeLabel = (type === "bike" ? t("common.bikes") : t("common.scooters")).toLowerCase();
+  const canContinue = serviceOpen && !!station && !noVehicleReason;
+  const credErrorCode = !preview.ok ? preview.error : null;
 
   const toReview = () => {
     if (!credential.trim()) return setCredError(t("err.required"));
@@ -99,7 +105,6 @@ function CheckoutPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <DemoClockBanner />
       <PageHeader title={t("checkout.title")} />
       <ol className="mb-5 grid grid-cols-3 gap-2 text-xs font-semibold">
         {steps.map((label, i) => (
@@ -146,11 +151,25 @@ function CheckoutPage() {
               ))}
             </div>
           </fieldset>
+          {!serviceOpen && (
+            <p role="alert" className="flex gap-2 rounded-xl bg-warning-soft p-3 text-sm font-medium text-warning">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {t("checkout.closedNotice", { hours })}
+            </p>
+          )}
+          {serviceOpen && noVehicleReason && (
+            <p role="alert" className="flex gap-2 rounded-xl bg-warning-soft p-3 text-sm font-medium text-warning">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {t("checkout.noVehicle", {
+                reason: t(`station.reason.${noVehicleReason}` as TKey, { type: typeLabel, threshold: state.config.batteryThreshold }),
+              })}
+            </p>
+          )}
           <div className="flex justify-between gap-2">
             <Button variant="outline" asChild>
               <Link to="/">{t("common.back")}</Link>
             </Button>
-            <Button onClick={() => setStep(2)}>{t("common.next")}</Button>
+            <Button onClick={() => setStep(2)} disabled={!canContinue}>{t("common.next")}</Button>
           </div>
         </Card>
       )}
@@ -179,6 +198,11 @@ function CheckoutPage() {
               {t("checkout.credentialHelp")}
             </p>
             <FieldError id="cred-err">{credError}</FieldError>
+            {credError && credErrorCode === "user_has_active_loan" && (
+              <Link to="/loan" className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-info underline">
+                {t("checkout.activeLoanLink")}
+              </Link>
+            )}
           </div>
           <div>
             <h2 className="mb-2 text-sm font-semibold">{t("checkout.demoUsers")}</h2>

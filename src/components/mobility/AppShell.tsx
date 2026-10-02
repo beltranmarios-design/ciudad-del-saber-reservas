@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Clock, History, MapPinned, Settings2 } from "lucide-react";
+import { Clock, FlaskConical, History, MapPinned, Settings2 } from "lucide-react";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { useNow, useStore } from "@/lib/mobility/store";
 import { isServiceOpen } from "@/lib/mobility/rules";
@@ -56,15 +56,18 @@ function ServiceStatus() {
   const now = useNow(30_000);
   if (!state) return null;
   const open = isServiceOpen(now, state.config);
+  const simulated = state.config.scheduleOverride !== "auto";
   return (
     <span
       className={cn(
         "hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold md:inline-flex",
         open ? "bg-primary-soft text-primary-strong" : "bg-warning-soft text-warning",
+        simulated && "border-2 border-dashed border-info",
       )}
     >
       <span className={cn("size-2 rounded-full", open ? "bg-primary" : "bg-warning")} aria-hidden />
       {open ? t("service.open") : t("service.closed")}
+      {simulated && <span className="text-info">({t("service.simulated")})</span>}
     </span>
   );
 }
@@ -114,6 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
+      <DemoClockBanner />
       <main className={cn("mx-auto w-full max-w-7xl flex-1 px-4 py-5", !inOps && "pb-28 md:pb-8")}>{children}</main>
       {!inOps && (
         <nav
@@ -194,9 +198,18 @@ export function DemoClockBanner() {
   const { t } = useI18n();
   const { state } = useStore();
   if (!state || state.config.scheduleOverride === "auto") return null;
+  const mode = state.config.scheduleOverride;
   return (
-    <div className="mb-4 rounded-xl border border-warning bg-warning-soft px-3 py-2 text-sm font-medium text-warning" role="status">
-      {t("service.demoBanner", { mode: t(`settings.demo.${state.config.scheduleOverride}` as TKey) })}
+    <div
+      role="status"
+      data-testid="demo-clock-banner"
+      className="border-b-2 border-dashed border-info bg-info-soft text-info"
+    >
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-2 gap-y-0.5 px-4 py-2 text-sm">
+        <FlaskConical className="size-4 shrink-0" aria-hidden />
+        <strong className="font-bold">{t(mode === "open" ? "service.demoBanner.open" : "service.demoBanner.closed")}</strong>
+        <span className="text-xs text-foreground/80">{t("service.demoHint")}</span>
+      </div>
     </div>
   );
 }

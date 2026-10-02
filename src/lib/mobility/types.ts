@@ -82,7 +82,7 @@ export interface Config {
 }
 
 export interface AppState {
-  version: 1;
+  version: 2;
   initializedAt: number;
   organizations: Organization[];
   users: User[];

@@ -66,8 +66,8 @@ function Settings() {
   const field = (k: string, label: TKey, type = "text") => (
     <div>
       <label htmlFor={`cfg-${k}`} className="mb-1 block text-sm font-semibold">{t(label)}</label>
-      <input id={`cfg-${k}`} type={type} inputMode={type === "text" ? "numeric" : undefined} className={inputCls} value={f[k]} aria-invalid={errors.includes(k)} onChange={(e) => set(k, e.target.value)} />
-      {errors.includes(k) && <FieldError>{t("settings.fieldInvalid")}</FieldError>}
+      <input id={`cfg-${k}`} type={type} inputMode={type === "text" ? "numeric" : undefined} className={inputCls} value={f[k]} aria-invalid={errors.includes(k)} aria-describedby={errors.includes(k) ? `cfg-${k}-err` : undefined} onChange={(e) => set(k, e.target.value)} />
+      {errors.includes(k) && <FieldError id={`cfg-${k}-err`}>{t(`settings.err.${k}` as TKey)}</FieldError>}
     </div>
   );
 
@@ -102,7 +102,7 @@ function Settings() {
                   </label>
                 ))}
               </div>
-              {errors.includes("days") && <FieldError>{t("settings.fieldInvalid")}</FieldError>}
+              {errors.includes("days") && <FieldError>{t("settings.err.days")}</FieldError>}
             </fieldset>
             <p className="text-xs text-muted-foreground">{c.schedule.timeZone}</p>
             <Button type="submit" className="w-full">{t("common.save")}</Button>

@@ -4,7 +4,6 @@ import { LockKeyhole, LogOut } from "lucide-react";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { OPS_ACCESS_KEY, OPS_SESSION_KEY } from "@/lib/mobility/constants";
 import { Card, FieldError, inputCls } from "@/components/mobility/ui";
-import { DemoClockBanner } from "@/components/mobility/AppShell";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/ops")({
@@ -75,7 +74,6 @@ function OpsLayout() {
           <LogOut />
         </Button>
       </div>
-      <DemoClockBanner />
       <Outlet />
     </div>
   );
