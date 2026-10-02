@@ -61,7 +61,7 @@ function StationPanel({ stats, state }: { stats: StationStats; state: AppState }
         {[
           [t("station.capacity"), stats.station.capacity],
           [t("station.present"), stats.occupancy],
-          [t("station.free"), stats.free],
+          [t("station.free", { n: stats.free }), stats.free],
           [`${t("common.bikes")} / ${t("common.scooters")}`, `${stats.availableBikes} / ${stats.eligibleScooters}`],
         ].map(([l, v]) => (
           <div key={String(l)} className="rounded-xl bg-muted p-2">
