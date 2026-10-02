@@ -11,6 +11,20 @@ const markerFill: Record<Level, string> = {
   full: "fill-destructive",
 };
 
+/** Wraps long station names into up to 3 short lines instead of truncating them. */
+export function splitName(name: string, max = 20): string[] {
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of name.split(" ")) {
+    if (cur && (cur + " " + w).length > max) {
+      lines.push(cur);
+      cur = w;
+    } else cur = cur ? cur + " " + w : w;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
 export function CampusMap({
   stats,
   cfg,
@@ -45,7 +59,7 @@ export function CampusMap({
               role="button"
               tabIndex={0}
               aria-pressed={selected}
-              aria-label={`${s.station.name}: ${s.availableBikes} ${t("station.availableBikes").toLowerCase()}, ${s.eligibleScooters} ${t("station.eligibleScooters").toLowerCase()}, ${s.free} ${t("station.free").toLowerCase()}${s.full ? `, ${t("status.full")}` : ""}`}
+              aria-label={`${s.station.name}: ${s.availableBikes} ${t("station.availableBikes", { n: s.availableBikes }).toLowerCase()}, ${s.eligibleScooters} ${t("station.eligibleScooters", { n: s.eligibleScooters }).toLowerCase()}, ${t("station.present").toLowerCase()} ${s.occupancy}/${s.station.capacity}, ${s.free} ${t("station.free", { n: s.free }).toLowerCase()}${s.full ? `, ${t("status.full")}` : ""}`}
               onClick={() => onSelect(s.station.id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -62,8 +76,13 @@ export function CampusMap({
               <text textAnchor="middle" dy="4.5" className="fill-primary-foreground font-display text-[13px] font-extrabold">
                 {count}
               </text>
+              <title>{s.station.name}</title>
               <text textAnchor="middle" y={selected ? 36 : 32} className="fill-foreground text-[9px] font-semibold" style={{ paintOrder: "stroke" }} stroke="white" strokeWidth="3">
-                {s.station.name.length > 22 ? s.station.name.slice(0, 20) + "…" : s.station.name}
+                {splitName(s.station.name).map((line, i) => (
+                  <tspan key={i} x="0" dy={i === 0 ? 0 : 10}>
+                    {line}
+                  </tspan>
+                ))}
               </text>
             </g>
           );
@@ -76,7 +95,7 @@ export function CampusMap({
   );
 }
 
-export function MapLegend() {
+export function MapLegend({ filter, cfg }: { filter: "all" | "bike" | "scooter"; cfg: Config }) {
   const { t } = useI18n();
   const items: Array<[Level, string]> = [
     ["low", t("map.legend.low")],
@@ -85,7 +104,12 @@ export function MapLegend() {
     ["full", t("map.legend.full")],
   ];
   return (
-    <div aria-label={t("map.legend")} className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+    <div className="space-y-2 rounded-xl border bg-card p-3 text-xs">
+      <p className="font-semibold text-foreground" aria-live="polite">
+        {t(`map.numbers.${filter}`, { threshold: cfg.batteryThreshold })}
+      </p>
+      <p className="text-muted-foreground">{t("map.numbers.color")}</p>
+    <div aria-label={t("map.legend")} className="flex flex-wrap gap-x-4 gap-y-1">
       {items.map(([lvl, label]) => (
         <span key={lvl} className="inline-flex items-center gap-1.5">
           <svg viewBox="0 0 16 16" className="size-4" aria-hidden>
@@ -95,6 +119,7 @@ export function MapLegend() {
           {label}
         </span>
       ))}
+    </div>
     </div>
   );
 }

@@ -58,7 +58,7 @@ function StationsPage() {
             ))}
           </div>
           <CampusMap stats={stats} cfg={state.config} selectedId={selected} onSelect={setSelected} filter={filter} />
-          <MapLegend />
+          <MapLegend filter={filter} cfg={state.config} />
         </div>
         <section aria-label={t("station.list")}>
           <h2 className="mb-3 text-lg font-bold">{t("station.list")}</h2>
@@ -89,11 +89,11 @@ function Counts({ stats, filter }: { stats: StationStats; filter: Filter }) {
     </div>
   );
   return (
-    <div className="grid grid-cols-3 gap-2 text-center">
-      {filter !== "scooter" && cell(t("station.availableBikes"), stats.availableBikes, true)}
-      {filter !== "bike" && cell(t("station.eligibleScooters"), stats.eligibleScooters, true)}
-      {cell(t("station.free"), stats.free)}
-      {filter !== "all" && cell(t("station.present"), stats.occupancy)}
+    <div className={cn("grid gap-2 text-center", filter === "all" ? "grid-cols-2 min-[400px]:grid-cols-4" : "grid-cols-3")}>
+      {filter !== "scooter" && cell(t("station.availableBikes", { n: stats.availableBikes }), stats.availableBikes, true)}
+      {filter !== "bike" && cell(t("station.eligibleScooters", { n: stats.eligibleScooters }), stats.eligibleScooters, true)}
+      {cell(`${t("station.present")} (${stats.station.capacity})`, stats.occupancy)}
+      {cell(t("station.free", { n: stats.free }), stats.free)}
     </div>
   );
 }
@@ -137,7 +137,9 @@ function StationDetail({ stats, state }: { stats: StationStats; state: AppState 
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-2 font-semibold">
             <VehicleIcon type={ty} className="size-5 text-primary-strong" />
-            {ty === "bike" ? t("station.availableBikes") : t("station.eligibleScooters")}
+            {ty === "bike"
+              ? t("station.availableBikes", { n: stats.availableBikes })
+              : t("station.eligibleScooters", { n: stats.eligibleScooters })}
           </span>
           <span className="font-display text-2xl font-extrabold tabular">
             {ty === "bike" ? stats.availableBikes : stats.eligibleScooters}
@@ -163,7 +165,7 @@ function StationDetail({ stats, state }: { stats: StationStats; state: AppState 
       <DialogHeader>
         <DialogTitle className="pr-6 text-xl">{stats.station.name}</DialogTitle>
         <DialogDescription>
-          {t("station.capacity")}: {stats.station.capacity} · {t("station.present")}: {stats.occupancy} ({t("station.presentHelp").toLowerCase()}) · {t("station.free")}: {stats.free}
+          {t("station.capacity")}: {stats.station.capacity} · {t("station.present")}: {stats.occupancy} ({t("station.presentHelp").toLowerCase()}) · {t("station.free", { n: stats.free })}: {stats.free}
         </DialogDescription>
       </DialogHeader>
       <OccupancyBar stats={stats} cfg={state.config} />
