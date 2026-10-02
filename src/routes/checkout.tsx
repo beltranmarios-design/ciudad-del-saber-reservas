@@ -4,7 +4,7 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { z } from "zod";
 import { useI18n, type TKey } from "@/lib/i18n";
 import { useNow, useStore } from "@/lib/mobility/store";
-import { activeLoanOf, checkout, ineligibleReason, isServiceOpen, previewCheckout, stationStats } from "@/lib/mobility/rules";
+import { activeLoanOf, checkout, findUserByCredential, ineligibleReason, isServiceOpen, previewCheckout, stationStats } from "@/lib/mobility/rules";
 import type { Loan, VehicleType } from "@/lib/mobility/types";
 import { BatteryValue, Card, FieldError, PageHeader, Pill, Select, VehicleIcon, inputCls, useErrorText } from "@/components/mobility/ui";
 import { Button } from "@/components/ui/button";
@@ -199,7 +199,14 @@ function CheckoutPage() {
             </p>
             <FieldError id="cred-err">{credError}</FieldError>
             {credError && credErrorCode === "user_has_active_loan" && (
-              <Link to="/loan" className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-info underline">
+              <Link
+                to="/loan"
+                onClick={() => {
+                  const u = findUserByCredential(state, credential);
+                  if (u && activeLoanOf(state, u.id)) setSessionCredential(u.credential);
+                }}
+                className="mt-1 inline-flex min-h-11 items-center text-sm font-semibold text-info underline"
+              >
                 {t("checkout.activeLoanLink")}
               </Link>
             )}
