@@ -34,7 +34,7 @@ export interface Vehicle {
   /** null when loaned: a loaned vehicle is not physically at any station. */
   stationId: string | null;
   /** 0..100, scooters only. */
-  battery?: number;
+  battery?: number | undefined;
 }
 
 export interface Loan {

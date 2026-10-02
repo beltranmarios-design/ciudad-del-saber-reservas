@@ -110,7 +110,7 @@ export function zonedParts(now: number, timeZone: string) {
 
 const toMinutes = (hhmm: string) => {
   const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
+  return (h ?? 0) * 60 + (m ?? 0);
 };
 
 /** Pickups allowed from open (inclusive) until close (exclusive). Returns are always allowed. */
