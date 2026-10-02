@@ -13,6 +13,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as LoanRouteImport } from './routes/loan'
+import { Route as OpsRouteImport } from './routes/ops'
+import { Route as OpsIndexRouteImport } from './routes/ops.index'
+import { Route as OpsFleetRouteImport } from './routes/ops.fleet'
+import { Route as OpsLoansRouteImport } from './routes/ops.loans'
+import { Route as OpsRedistributionRouteImport } from './routes/ops.redistribution'
+import { Route as OpsSettingsRouteImport } from './routes/ops.settings'
+import { Route as OpsStationsRouteImport } from './routes/ops.stations'
+import { Route as OpsUsersRouteImport } from './routes/ops.users'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +42,73 @@ const LoanRoute = LoanRouteImport.update({
   path: '/loan',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OpsRoute = OpsRouteImport.update({
+  id: '/ops',
+  path: '/ops',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpsIndexRoute = OpsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OpsRoute,
+} as any)
+const OpsFleetRoute = OpsFleetRouteImport.update({
+  id: '/fleet',
+  path: '/fleet',
+  getParentRoute: () => OpsRoute,
+} as any)
+const OpsLoansRoute = OpsLoansRouteImport.update({
+  id: '/loans',
+  path: '/loans',
+  getParentRoute: () => OpsRoute,
+} as any)
+const OpsRedistributionRoute = OpsRedistributionRouteImport.update({
+  id: '/redistribution',
+  path: '/redistribution',
+  getParentRoute: () => OpsRoute,
+} as any)
+const OpsSettingsRoute = OpsSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => OpsRoute,
+} as any)
+const OpsStationsRoute = OpsStationsRouteImport.update({
+  id: '/stations',
+  path: '/stations',
+  getParentRoute: () => OpsRoute,
+} as any)
+const OpsUsersRoute = OpsUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => OpsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/checkout': typeof CheckoutRoute
   '/history': typeof HistoryRoute
   '/loan': typeof LoanRoute
+  '/ops': typeof OpsRouteWithChildren
+  '/ops/fleet': typeof OpsFleetRoute
+  '/ops/loans': typeof OpsLoansRoute
+  '/ops/redistribution': typeof OpsRedistributionRoute
+  '/ops/settings': typeof OpsSettingsRoute
+  '/ops/stations': typeof OpsStationsRoute
+  '/ops/users': typeof OpsUsersRoute
+  '/ops/': typeof OpsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/checkout': typeof CheckoutRoute
   '/history': typeof HistoryRoute
   '/loan': typeof LoanRoute
+  '/ops/fleet': typeof OpsFleetRoute
+  '/ops/loans': typeof OpsLoansRoute
+  '/ops/redistribution': typeof OpsRedistributionRoute
+  '/ops/settings': typeof OpsSettingsRoute
+  '/ops/stations': typeof OpsStationsRoute
+  '/ops/users': typeof OpsUsersRoute
+  '/ops': typeof OpsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +116,57 @@ export interface FileRoutesById {
   '/checkout': typeof CheckoutRoute
   '/history': typeof HistoryRoute
   '/loan': typeof LoanRoute
+  '/ops': typeof OpsRouteWithChildren
+  '/ops/fleet': typeof OpsFleetRoute
+  '/ops/loans': typeof OpsLoansRoute
+  '/ops/redistribution': typeof OpsRedistributionRoute
+  '/ops/settings': typeof OpsSettingsRoute
+  '/ops/stations': typeof OpsStationsRoute
+  '/ops/users': typeof OpsUsersRoute
+  '/ops/': typeof OpsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/checkout' | '/history' | '/loan'
+  fullPaths:
+    | '/'
+    | '/checkout'
+    | '/history'
+    | '/loan'
+    | '/ops'
+    | '/ops/fleet'
+    | '/ops/loans'
+    | '/ops/redistribution'
+    | '/ops/settings'
+    | '/ops/stations'
+    | '/ops/users'
+    | '/ops/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/checkout' | '/history' | '/loan'
-  id: '__root__' | '/' | '/checkout' | '/history' | '/loan'
+  to:
+    | '/'
+    | '/checkout'
+    | '/history'
+    | '/loan'
+    | '/ops/fleet'
+    | '/ops/loans'
+    | '/ops/redistribution'
+    | '/ops/settings'
+    | '/ops/stations'
+    | '/ops/users'
+    | '/ops'
+  id:
+    | '__root__'
+    | '/'
+    | '/checkout'
+    | '/history'
+    | '/loan'
+    | '/ops'
+    | '/ops/fleet'
+    | '/ops/loans'
+    | '/ops/redistribution'
+    | '/ops/settings'
+    | '/ops/stations'
+    | '/ops/users'
+    | '/ops/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +174,7 @@ export interface RootRouteChildren {
   CheckoutRoute: typeof CheckoutRoute
   HistoryRoute: typeof HistoryRoute
   LoanRoute: typeof LoanRoute
+  OpsRoute: typeof OpsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -99,14 +207,93 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoanRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ops': {
+      id: '/ops'
+      path: '/ops'
+      fullPath: '/ops'
+      preLoaderRoute: typeof OpsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ops/': {
+      id: '/ops/'
+      path: '/'
+      fullPath: '/ops/'
+      preLoaderRoute: typeof OpsIndexRouteImport
+      parentRoute: typeof OpsRoute
+    }
+    '/ops/fleet': {
+      id: '/ops/fleet'
+      path: '/fleet'
+      fullPath: '/ops/fleet'
+      preLoaderRoute: typeof OpsFleetRouteImport
+      parentRoute: typeof OpsRoute
+    }
+    '/ops/loans': {
+      id: '/ops/loans'
+      path: '/loans'
+      fullPath: '/ops/loans'
+      preLoaderRoute: typeof OpsLoansRouteImport
+      parentRoute: typeof OpsRoute
+    }
+    '/ops/redistribution': {
+      id: '/ops/redistribution'
+      path: '/redistribution'
+      fullPath: '/ops/redistribution'
+      preLoaderRoute: typeof OpsRedistributionRouteImport
+      parentRoute: typeof OpsRoute
+    }
+    '/ops/settings': {
+      id: '/ops/settings'
+      path: '/settings'
+      fullPath: '/ops/settings'
+      preLoaderRoute: typeof OpsSettingsRouteImport
+      parentRoute: typeof OpsRoute
+    }
+    '/ops/stations': {
+      id: '/ops/stations'
+      path: '/stations'
+      fullPath: '/ops/stations'
+      preLoaderRoute: typeof OpsStationsRouteImport
+      parentRoute: typeof OpsRoute
+    }
+    '/ops/users': {
+      id: '/ops/users'
+      path: '/users'
+      fullPath: '/ops/users'
+      preLoaderRoute: typeof OpsUsersRouteImport
+      parentRoute: typeof OpsRoute
+    }
   }
 }
+
+interface OpsRouteChildren {
+  OpsFleetRoute: typeof OpsFleetRoute
+  OpsLoansRoute: typeof OpsLoansRoute
+  OpsRedistributionRoute: typeof OpsRedistributionRoute
+  OpsSettingsRoute: typeof OpsSettingsRoute
+  OpsStationsRoute: typeof OpsStationsRoute
+  OpsUsersRoute: typeof OpsUsersRoute
+  OpsIndexRoute: typeof OpsIndexRoute
+}
+
+const OpsRouteChildren: OpsRouteChildren = {
+  OpsFleetRoute: OpsFleetRoute,
+  OpsLoansRoute: OpsLoansRoute,
+  OpsRedistributionRoute: OpsRedistributionRoute,
+  OpsSettingsRoute: OpsSettingsRoute,
+  OpsStationsRoute: OpsStationsRoute,
+  OpsUsersRoute: OpsUsersRoute,
+  OpsIndexRoute: OpsIndexRoute,
+}
+
+const OpsRouteWithChildren = OpsRoute._addFileChildren(OpsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CheckoutRoute: CheckoutRoute,
   HistoryRoute: HistoryRoute,
   LoanRoute: LoanRoute,
+  OpsRoute: OpsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
