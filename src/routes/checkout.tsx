@@ -7,7 +7,6 @@ import { useNow, useStore } from "@/lib/mobility/store";
 import { activeLoanOf, checkout, previewCheckout, stationStats } from "@/lib/mobility/rules";
 import type { Loan, VehicleType } from "@/lib/mobility/types";
 import { BatteryValue, Card, FieldError, PageHeader, Pill, Select, VehicleIcon, inputCls, useErrorText } from "@/components/mobility/ui";
-import { DemoClockBanner } from "@/components/mobility/AppShell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -99,7 +98,6 @@ function CheckoutPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <DemoClockBanner />
       <PageHeader title={t("checkout.title")} />
       <ol className="mb-5 grid grid-cols-3 gap-2 text-xs font-semibold">
         {steps.map((label, i) => (

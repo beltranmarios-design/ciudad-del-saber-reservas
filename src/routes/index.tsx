@@ -7,7 +7,6 @@ import { allStationStats, ineligibleReason, isServiceOpen, type StationStats } f
 import type { AppState, VehicleType } from "@/lib/mobility/types";
 import { CampusMap, MapLegend } from "@/components/mobility/CampusMap";
 import { Card, OccupancyBar, PageHeader, Pill, VehicleIcon, occupancyLevel, levelClasses } from "@/components/mobility/ui";
-import { DemoClockBanner } from "@/components/mobility/AppShell";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -39,7 +38,6 @@ function StationsPage() {
 
   return (
     <>
-      <DemoClockBanner />
       <PageHeader
         title={t("nav.stations")}
         subtitle={t("service.hours", { open: state.config.schedule.open, close: state.config.schedule.close })}
