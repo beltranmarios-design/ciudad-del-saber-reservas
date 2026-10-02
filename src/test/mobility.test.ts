@@ -12,7 +12,9 @@ import {
   setVehicleStatus,
   stationStats,
 } from "@/lib/mobility/rules";
-import { commitOperation, loadState, saveState, type StorageLike } from "@/lib/mobility/storage";
+import { commitOperation, loadState, migrateState, saveState, type StorageLike } from "@/lib/mobility/storage";
+import { loanIsOverdue, normalizeLowBattery, updateConfig } from "@/lib/mobility/rules";
+import { translate } from "@/lib/i18n";
 import { STORAGE_KEY } from "@/lib/mobility/constants";
 import type { AppState } from "@/lib/mobility/types";
 
@@ -90,7 +92,7 @@ describe("acceptance", () => {
 
   it("5. scooters with battery <= 20% are never assigned", () => {
     const s = seed();
-    const s20 = s.vehicles.find((v) => v.code === "SCO-003")!; // exactly 20, available
+    const s20 = { ...s.vehicles.find((v) => v.code === "SCO-003")!, status: "available" as const }; // exactly 20
     expect(isEligible(s20, s.config)).toBe(false);
     // Leave only low-battery scooters at Acceso
     const only = { ...s, vehicles: s.vehicles.map((v) => (v.code === "SCO-001" || v.code === "SCO-002" ? { ...v, battery: 10 } : v)) };
@@ -245,5 +247,118 @@ describe("acceptance", () => {
     mem.setItem(STORAGE_KEY, "{not json");
     expect(loadState(mem).status).toBe("corrupt");
     expect(mem.getItem(STORAGE_KEY)).toBe("{not json");
+  });
+});
+
+describe("review fixes", () => {
+  it("battery 19/20/21: only >20 is eligible; returns at <=20 go to charging", () => {
+    const s = seed();
+    const base = s.vehicles.find((v) => v.code === "SCO-001")!;
+    for (const [b, ok] of [[19, false], [20, false], [21, true]] as const)
+      expect(isEligible({ ...base, battery: b }, s.config)).toBe(ok);
+    for (const [b, status] of [[19, "charging"], [20, "charging"], [21, "available"]] as const) {
+      const r = returnVehicle(s, { loanId: "L-0003", stationId: "st-gym", battery: b, now: OPEN_NOW });
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      const v = r.state.vehicles.find((x) => x.id === "v-sco-019")!;
+      expect(v.status).toBe(status);
+      expect(st(r.state, "st-gym").eligibleScooters).toBe(st(s, "st-gym").eligibleScooters + (status === "available" ? 1 : 0));
+    }
+  });
+
+  it("seed has no parked 'available' scooter at <=20 % (SCO-003, SCO-016 charging)", () => {
+    const s = seed();
+    for (const v of s.vehicles)
+      if (v.type === "scooter" && v.status === "available") expect(v.battery!).toBeGreaterThan(20);
+    expect(s.vehicles.find((v) => v.code === "SCO-003")!.status).toBe("charging");
+    expect(s.vehicles.find((v) => v.code === "SCO-016")!.status).toBe("charging");
+    expect(s.vehicles.find((v) => v.code === "SCO-009")!.status).toBe("available"); // 21 %
+  });
+
+  it("v1 -> v2 migration fixes low-battery scooters without losing loans or history", () => {
+    const s = seed();
+    const v1 = {
+      ...s,
+      version: 1,
+      vehicles: s.vehicles.map((v) =>
+        v.code === "SCO-003" || v.code === "SCO-016" ? { ...v, status: "available" as const } : v.code === "SCO-007" ? { ...v, status: "maintenance" as const, battery: 5 } : v,
+      ),
+    } as unknown as AppState;
+    const mem = memStorage();
+    mem.setItem(STORAGE_KEY, JSON.stringify(v1));
+    const r = loadState(mem, OPEN_NOW);
+    expect(r.status).toBe("ok");
+    if (r.status !== "ok") return;
+    expect(r.state.version).toBe(2);
+    expect(r.state.vehicles.find((v) => v.code === "SCO-003")!.status).toBe("charging");
+    expect(r.state.vehicles.find((v) => v.code === "SCO-007")!.status).toBe("maintenance");
+    expect(r.state.loans).toEqual(v1.loans);
+    expect(r.state.movements).toEqual(v1.movements);
+    expect(r.state.vehicles.map((v) => v.stationId)).toEqual(v1.vehicles.map((v) => v.stationId));
+    expect(JSON.parse(mem.getItem(STORAGE_KEY)!).version).toBe(2); // persisted
+    expect(migrateState(r.state).migrated).toBe(false);
+  });
+
+  it("raising the battery threshold re-normalises parked scooters", () => {
+    const s = seed();
+    const r = updateConfig(s, { ...s.config, batteryThreshold: 50 });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    for (const v of r.state.vehicles)
+      if (v.type === "scooter" && v.status === "available") expect(v.battery!).toBeGreaterThan(50);
+    expect(normalizeLowBattery(r.state)).toBe(r.state);
+  });
+
+  it("seeded pickups always fall inside real service hours, with coherent dates", () => {
+    const real = { ...seed().config, scheduleOverride: "auto" as const };
+    const samples = [
+      Date.UTC(2026, 9, 2, 10, 42), // Fri 05:42 PTY (before opening)
+      Date.UTC(2026, 9, 2, 12, 10), // Fri 07:10 PTY
+      OPEN_NOW,
+      Date.UTC(2026, 9, 3, 2, 0), // Fri 21:00 PTY
+      Date.UTC(2026, 9, 4, 18, 0), // Sunday
+      Date.UTC(2026, 9, 5, 13, 0), // Mon 08:00 PTY
+    ];
+    for (const now of samples) {
+      const s = createSeedState(now);
+      for (const l of s.loans) {
+        expect(isServiceOpen(l.startAt, real)).toBe(true);
+        expect(l.startAt).toBeLessThanOrEqual(now);
+        expect(l.dueAt).toBe(l.startAt + 120 * MIN);
+        if (l.status === "returned") {
+          expect(l.returnedAt!).toBeLessThanOrEqual(now);
+          expect(l.durationMs).toBe(l.returnedAt! - l.startAt);
+          expect(l.overdue).toBe(l.durationMs! > 120 * MIN);
+        }
+      }
+      const actives = s.loans.filter((l) => l.status === "active");
+      expect(actives).toHaveLength(6);
+      // Before opening, every active loan started on a previous service day and is overdue.
+      if (now === samples[0]) for (const l of actives) expect(loanIsOverdue(l, now, s.config)).toBe(true);
+    }
+  });
+
+  it("availability, occupancy and free docks stay consistent", () => {
+    const s = seed();
+    for (const x of allStationStats(s)) {
+      expect(x.free).toBe(x.station.capacity - x.occupancy);
+      expect(x.availableBikes + x.eligibleScooters).toBeLessThanOrEqual(x.occupancy);
+      expect(x.availableBikes + x.eligibleScooters).toBe(x.present.filter((v) => isEligible(v, s.config)).length);
+    }
+  });
+
+  it("plurals and specific errors in both languages", () => {
+    expect(translate("es", "return.freeSpaces", { n: 1 })).toBe("1 plaza libre");
+    expect(translate("es", "return.freeSpaces", { n: 2 })).toBe("2 plazas libres");
+    expect(translate("en", "return.freeSpaces", { n: 1 })).toBe("1 free dock");
+    expect(translate("es", "station.availableBikes", { n: 1 })).toBe("Bicicleta disponible");
+    expect(translate("es", "station.availableBikes", { n: 0 })).toBe("Bicicletas disponibles");
+    expect(translate("es", "fleet.results", { n: 1 })).toBe("1 vehículo");
+    expect(translate("en", "fleet.results", { n: 3 })).toBe("3 vehicles");
+    expect(translate("es", "redis.confirmBody", { n: 1, from: "A", to: "B" })).toBe("Se moverá 1 vehículo de A a B.");
+    expect(translate("es", "settings.err.highOccupancy")).toContain("El umbral alto de ocupación debe ser mayor que el umbral bajo");
+    expect(translate("en", "settings.err.highOccupancy")).toContain("greater than the low threshold");
+    expect(translate("es", "service.demoBanner.open")).toBe("Modo demostración: servicio forzado abierto");
+    expect(translate("es", "service.demoBanner.closed")).toBe("Modo demostración: servicio forzado cerrado");
   });
 });
