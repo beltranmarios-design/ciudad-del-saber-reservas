@@ -16,3 +16,4 @@
 - Occupancy/availability are always derived from vehicles, never stored — avoids desynced counters.
 - All UI strings go through src/lib/i18n.tsx (typed ES/EN keys) — missing translations fail typecheck.
 - Project scope is frontend-only: no Cloud/Supabase/server functions — required by the client brief.
+- Stored data is versioned; schema/coherence changes ship as a non-destructive migration in storage.ts (migrateState) — never wipe user data.
