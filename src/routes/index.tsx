@@ -61,7 +61,8 @@ function StationsPage() {
           <MapLegend filter={filter} cfg={state.config} />
         </div>
         <section aria-label={t("station.list")}>
-          <h2 className="mb-3 text-lg font-bold">{t("station.list")}</h2>
+          <h2 className="mb-1 text-lg font-bold">{t("station.list")}</h2>
+          <p className="mb-3 text-xs text-muted-foreground">{t("station.availableHelp")}</p>
           <ul className="space-y-3">
             {stats.map((s) => (
               <li key={s.station.id}>
